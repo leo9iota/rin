@@ -27,9 +27,17 @@ async fn main() -> anyhow::Result<()> {
     // spawn background worker spawner
     tokio::spawn(async move {
         if let Some(config) = rx.recv().await {
-            // Log an info trace
             tracing::info!("Background engine spinning up with config: {:?}", config);
-            // Engine logic goes here
+
+            let fetcher = rin_core::indexer::LogFetcher::new(config);
+            match fetcher.fetch_logs().await {
+                Ok(logs) => {
+                    tracing::info!(count = logs.len(), "Fetched logs from RPC node");
+                }
+                Err(err) => {
+                    tracing::error!(?err, "Log fetching failed");
+                }
+            }
         }
     });
 
@@ -71,12 +79,12 @@ async fn main() -> anyhow::Result<()> {
                                     rpc_url: app_state.setup_form.rpc_url.value().to_string(),
                                     contract_address: app_state
                                         .setup_form
-                                        .contract_address
+                                        .contract
                                         .value()
                                         .to_string(),
                                     event_signature: app_state
                                         .setup_form
-                                        .event_signature
+                                        .event
                                         .value()
                                         .to_string(),
                                     start_block: app_state
