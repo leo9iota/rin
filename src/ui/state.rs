@@ -5,10 +5,12 @@ pub enum AppMode {
     Dashboard,
 }
 
+use super::forms::SetupFormState;
+
 #[derive(Default, Debug)]
 pub struct AppState {
     pub mode: AppMode,
-    // Add setup form fields and dashboard state here
+    pub setup_form: SetupFormState,
 }
 
 impl AppState {
