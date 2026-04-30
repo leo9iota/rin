@@ -73,6 +73,7 @@ impl DynamicDecoder {
         
         // NOTE: We extract these fields eagerly and provide safe defaults if missing,
         // as some RPC providers may return pending logs without block metadata.
+        // E.g., `transaction_hash` or `log_index` can legitimately be absent on unmined blocks.
         let tx_hash = log.transaction_hash.map(|h| h.to_string()).unwrap_or_default();
         let log_idx = log.log_index.unwrap_or_default();
         let block_num = log.block_number.unwrap_or_default();

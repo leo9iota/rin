@@ -40,6 +40,11 @@ impl Database {
     /// This bypasses all persistent IO operations, ensuring clean execution
     /// without side-effects.
     ///
+    /// // NOTE: This function relies on the `kv-mem` feature flag in `Cargo.toml`.
+    /// // It guarantees that `cargo test` runs do not create permanent `.db` files 
+    /// // on disk, preventing file-lock contention and database corruption when multiple 
+    /// // integration tests run concurrently.
+    ///
     /// # Errors
     /// Returns `Err` if the in-memory engine fails to initialize or if schema
     /// execution fails.
@@ -83,7 +88,9 @@ impl Database {
         // Chunking prevents overwhelming the embedded KV engine with massive allocations.
         for chunk in events.chunks(1000) {
             // Bulk upsert into the "event" table to guarantee idempotency.
-            // If the `{tx_hash}_{log_index}` ID already exists, it elegantly overwrites.
+            // NOTE: The `{tx_hash}_{log_index}` unique identifier ensures that if the indexer
+            // crashes and restarts from an earlier block, duplicate events will cleanly
+            // overwrite their previous iterations rather than causing primary key collisions.
             let _created: Vec<serde_json::Value> = self.db.upsert("event").content(chunk.to_vec()).await?;
         }
         Ok(())

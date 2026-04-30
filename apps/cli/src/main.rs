@@ -1,3 +1,12 @@
+//! Entrypoint for the Rin CLI application.
+//!
+//! This module coordinates the dual-thread architecture:
+//! 1. A synchronous Ratatui TUI thread running on the main execution context.
+//! 2. A detached Tokio background thread executing the heavy `rin_core` indexer pipeline.
+//!
+//! The two threads communicate entirely via non-blocking `mpsc` channels to ensure
+//! the UI never freezes during heavy database or network IO.
+
 use rin_core::{db, indexer};
 pub mod ui;
 use crossterm::{
@@ -18,7 +27,11 @@ async fn main() -> anyhow::Result<()> {
         .with_writer(std::sync::Mutex::new(log_file))
         .with_ansi(false)
         .init();
+        
     // init config and metrics channels
+    // NOTE: We use Tokio's `mpsc::channel` to pass Configuration from the UI down to the worker,
+    // and EngineMetrics back up to the UI. This guarantees safe state handoff without locking
+    // the UI thread while waiting for RPC nodes or SurrealDB writes.
     let (tx, mut rx) = tokio::sync::mpsc::channel::<rin_core::pipeline::config::ConfigPayload>(32);
     let (metrics_tx, mut metrics_rx) =
         tokio::sync::mpsc::channel::<rin_core::pipeline::metrics::EngineMetrics>(100);

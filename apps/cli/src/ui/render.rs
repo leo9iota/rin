@@ -1,3 +1,9 @@
+//! Ratatui rendering logic for the CLI dashboard.
+//!
+//! This module translates the current `AppState` into immediate-mode GUI draw commands.
+//! It handles layout constraint calculations, widget composition, and active-field highlighting
+//! across both the `Setup` and `Dashboard` application modes.
+
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout},
@@ -7,6 +13,8 @@ use ratatui::{
 
 use super::{AppMode, AppState, forms::FocusedField};
 
+/// Main rendering router. Dispatches the `Frame` drawing context to the correct
+/// view function based on the current `AppMode`.
 pub fn render(f: &mut Frame, state: &AppState) {
     match state.mode {
         AppMode::Setup => render_setup(f, state),
@@ -14,6 +22,11 @@ pub fn render(f: &mut Frame, state: &AppState) {
     }
 }
 
+/// Renders the configuration input form.
+///
+/// Draws a centered modal box containing `tui-input` fields for the RPC URL,
+/// Contract Address, Event Signature, and Start Block. Highlights the currently
+/// focused field and draws a physical block cursor for typing visibility.
 fn render_setup(f: &mut Frame, state: &AppState) {
     let size = f.area();
 
@@ -114,6 +127,13 @@ const VALUE_COLOR: Color = Color::Rgb(144, 229, 154);
 const TEXT_COLOR: Color = Color::Rgb(229, 233, 240);
 const HIGHLIGHT_COLOR: Color = Color::Rgb(180, 142, 173);
 
+/// Renders the real-time metrics and live indexing stream.
+///
+/// Dislays a four-pane vertical layout matching the `btop` aesthetic:
+/// 1. An animated header indicating active indexer status.
+/// 2. Three numerical stat blocks (Logs Fetched, Decoded, Inserted).
+/// 3. A rolling log stream displaying the 50 most recent decoded events.
+/// 4. A static footer.
 fn render_dashboard(f: &mut Frame, state: &AppState) {
     let size = f.area();
 

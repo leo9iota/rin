@@ -27,6 +27,15 @@ impl LogFetcher {
     /// Establish an Alloy HTTP provider, validate the connection by
     /// fetching the chain ID, and return all matching logs for the
     /// configured contract address and event signature.
+    ///
+    /// # Errors
+    /// Returns `Err` if the RPC provider connection fails, the requested block range
+    /// is invalid (e.g., `start_block` exceeds `latest_block`), or if the `eth_getLogs`
+    /// RPC call fails to execute successfully across the batch chunks.
+    ///
+    /// # Panics
+    /// This function will panic if the underlying tokio runtime fails to join
+    /// the concurrent chunk-fetching workers.
     pub async fn fetch_logs(&self) -> Result<Vec<Log>> {
         // Phase 1: Provider initialization
         let rpc_url = self
@@ -60,6 +69,8 @@ impl LogFetcher {
         tracing::info!(start, end_block, "Fetching logs across block range");
 
         // Phase 2: Chunk the block range
+        // NOTE: We proactively slice the total block range into smaller chunks
+        // to bypass the hard 10,000 block query limit enforced by providers like Alchemy and Infura.
         let chunks = chunk_block_range(start, end_block, DEFAULT_CHUNK_SIZE);
         tracing::info!(chunk_count = chunks.len(), "Block range split into chunks");
 
