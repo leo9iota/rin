@@ -12,3 +12,9 @@ serde = { version = "1.0.228", features = ["derive"] }
 surrealdb = { version = "3.0.5", features = ["kv-mem"] }
 tokio = { version = "1.52.1", features = ["full"] }
 tui-input = "0.15.3"
+
+[profile.dev]
+split-debuginfo = "unpacked"
+
+[profile.dev.package."*"]
+opt-level = 3
