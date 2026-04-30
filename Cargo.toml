@@ -9,6 +9,6 @@ anyhow = "1.0.102"
 crossterm = "0.29.0"
 ratatui = "0.30.0"
 serde = { version = "1.0.228", features = ["derive"] }
-surrealdb = "3.0.5"
+surrealdb = { version = "3.0.5", features = ["kv-mem"] }
 tokio = { version = "1.52.1", features = ["full"] }
 tui-input = "0.15.3"
