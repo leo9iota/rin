@@ -1,25 +1,30 @@
 default:
     @just --list
 
-# Run Rin Indexer natively
+# Run the Rin CLI (TUI)
 run:
-    cargo run
+    cargo run -p rin-cli
 
-# Run Rin Indexer with full optimizations
-run-release:
-    cargo run --release
+# Run the Rin API server
+run-api:
+    cargo run -p rin-api
 
-# Fast check for compilation errors
+# Build all workspace members in release mode
+build:
+    cargo build --workspace --release
+
+# Fast check for compilation errors across the workspace
 check:
-    cargo check
+    cargo check --workspace
 
-# Format codebase
+# Format the entire workspace (Rust and TOML)
 fmt:
-    cargo fmt
+    cargo fmt --all
+    taplo format
 
-# Run Clippy linter
+# Run Clippy linter across the workspace
 lint:
-    cargo clippy -- -D warnings
+    cargo clippy --workspace -- -D warnings
 
 # Clean Cargo cache
 clean:
