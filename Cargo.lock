@@ -5496,6 +5496,8 @@ dependencies = [
  "async-graphql-axum",
  "axum",
  "rin-core",
+ "serde_json",
+ "surrealdb",
  "tokio",
 ]
 

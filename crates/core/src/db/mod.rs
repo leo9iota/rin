@@ -21,4 +21,14 @@ impl Database {
         }
         Ok(())
     }
+
+    /// Fetches decoded events from SurrealDB
+    pub async fn fetch_events(&self, limit: u32) -> anyhow::Result<Vec<serde_json::Value>> {
+        let mut result = self.db.query("SELECT * FROM event LIMIT $limit")
+            .bind(("limit", limit))
+            .await?;
+            
+        let events: Vec<serde_json::Value> = result.take(0)?;
+        Ok(events)
+    }
 }
