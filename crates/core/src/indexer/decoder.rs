@@ -6,7 +6,7 @@
 //! allowing the indexer to adapt to any contract address and signature purely via configuration.
 
 use alloy::dyn_abi::{DynSolEvent, DynSolValue, Specifier};
-use alloy::primitives::Log;
+use alloy::rpc::types::Log;
 use anyhow::{Context, Result};
 use serde_json::{Map, Value};
 
@@ -16,6 +16,7 @@ use serde_json::{Map, Value};
 /// This struct holds a pre-resolved `DynSolEvent` signature, ensuring
 /// that the expensive string-parsing logic is only executed once during initialization
 /// rather than on every incoming log.
+#[derive(Debug)]
 pub struct DynamicDecoder {
     /// The resolved ABI event signature used to decode matching logs.
     event: DynSolEvent,
@@ -75,7 +76,7 @@ impl DynamicDecoder {
         let tx_hash = log.transaction_hash.map(|h| h.to_string()).unwrap_or_default();
         let log_idx = log.log_index.unwrap_or_default();
         let block_num = log.block_number.unwrap_or_default();
-        let address = log.address.to_string();
+        let address = log.inner.address.to_string();
         
         // Deterministic ID generation (`{tx_hash}_{log_index}`) guarantees that 
         // repeated fetches of the same block range do not duplicate records in SurrealDB.
@@ -95,7 +96,7 @@ impl DynamicDecoder {
 /// // TODO: For a full production implementation, this needs to recursively handle
 /// // array and tuple types, as well as applying checksums to address hex strings.
 fn dyn_to_json(val: DynSolValue) -> Value {
-    Value::String(val.to_string())
+    Value::String(format!("{val:?}"))
 }
 
 #[cfg(test)]
@@ -130,7 +131,7 @@ mod tests {
         let to_topic = b256!("0000000000000000000000002222222222222222222222222222222222222222");
         
         let mut log = RpcLog::default();
-        log.address = address!("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
+        log.inner.address = address!("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
         log.transaction_hash = Some(b256!("0x1234567812345678123456781234567812345678123456781234567812345678"));
         log.log_index = Some(42);
         log.block_number = Some(100);

@@ -18,7 +18,7 @@ async fn test_end_to_end_indexing() {
     
     for i in 0..50 {
         let mut log = RpcLog::default();
-        log.address = address!("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
+        log.inner.address = address!("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
         // Changing tx_hash slightly so they are unique if we want, or keep same
         log.transaction_hash = Some(b256!("0x1234567812345678123456781234567812345678123456781234567812345678"));
         log.log_index = Some(i as u64);
