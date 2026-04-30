@@ -5522,6 +5522,7 @@ dependencies = [
  "alloy",
  "anyhow",
  "serde",
+ "serde_json",
  "surrealdb",
  "tokio",
  "tracing",
