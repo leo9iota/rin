@@ -4,7 +4,7 @@
 
 ## Tech Stack
 
-![Tech Stack](https://go-skill-icons.vercel.app/api/icons?i=rust,surrealdb,ethereum&titles=true)
+![Tech Stack](https://go-skill-icons.vercel.app/api/icons?i=rust,surrealdb,ethereum,tokiors,ratatui&titles=true)
 
 ## License
 
