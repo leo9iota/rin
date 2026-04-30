@@ -16,6 +16,8 @@ pub enum EngineMetrics {
     LogsDecoded(usize),
     /// Indicates how many structured payloads were committed to the database storage layer.
     EventsInserted(usize),
+    /// Emits a stringified representation of a successfully processed event for real-time tailing.
+    LogStream(String),
     /// Indicates the overall ingestion pipeline has successfully reached the target chain head.
     PipelineComplete,
     /// Encapsulates a terminal error that caused the pipeline to abort.

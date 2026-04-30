@@ -7,6 +7,7 @@ pub enum AppMode {
 
 use super::forms::SetupFormState;
 use rin_core::pipeline::config::ConfigPayload;
+use std::collections::VecDeque;
 use tokio::sync::mpsc::Sender;
 
 #[derive(Debug)]
@@ -17,6 +18,8 @@ pub struct AppState {
     pub logs_fetched: usize,
     pub logs_decoded: usize,
     pub events_inserted: usize,
+    pub log_history: VecDeque<String>,
+    pub tick_count: usize,
 }
 
 impl AppState {
@@ -28,6 +31,8 @@ impl AppState {
             logs_fetched: 0,
             logs_decoded: 0,
             events_inserted: 0,
+            log_history: VecDeque::with_capacity(50),
+            tick_count: 0,
         }
     }
 }

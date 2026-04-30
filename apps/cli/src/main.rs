@@ -20,7 +20,8 @@ async fn main() -> anyhow::Result<()> {
         .init();
     // init config and metrics channels
     let (tx, mut rx) = tokio::sync::mpsc::channel::<rin_core::pipeline::config::ConfigPayload>(32);
-    let (metrics_tx, mut metrics_rx) = tokio::sync::mpsc::channel::<rin_core::pipeline::metrics::EngineMetrics>(100);
+    let (metrics_tx, mut metrics_rx) =
+        tokio::sync::mpsc::channel::<rin_core::pipeline::metrics::EngineMetrics>(100);
 
     // spawn background worker spawner
     let db = std::sync::Arc::new(db::Database::new().await?);
@@ -33,12 +34,20 @@ async fn main() -> anyhow::Result<()> {
             let logs = match fetcher.fetch_logs().await {
                 Ok(logs) => {
                     tracing::info!(count = logs.len(), "Fetched logs from RPC node");
-                    let _ = metrics_tx.send(rin_core::pipeline::metrics::EngineMetrics::LogsFetched(logs.len())).await;
+                    let _ = metrics_tx
+                        .send(rin_core::pipeline::metrics::EngineMetrics::LogsFetched(
+                            logs.len(),
+                        ))
+                        .await;
                     logs
                 }
                 Err(err) => {
                     tracing::error!(?err, "Log fetching failed");
-                    let _ = metrics_tx.send(rin_core::pipeline::metrics::EngineMetrics::PipelineError(err.to_string())).await;
+                    let _ = metrics_tx
+                        .send(rin_core::pipeline::metrics::EngineMetrics::PipelineError(
+                            err.to_string(),
+                        ))
+                        .await;
                     return;
                 }
             };
@@ -48,7 +57,11 @@ async fn main() -> anyhow::Result<()> {
                 Ok(d) => d,
                 Err(err) => {
                     tracing::error!(?err, "Failed to initialize decoder");
-                    let _ = metrics_tx.send(rin_core::pipeline::metrics::EngineMetrics::PipelineError(err.to_string())).await;
+                    let _ = metrics_tx
+                        .send(rin_core::pipeline::metrics::EngineMetrics::PipelineError(
+                            err.to_string(),
+                        ))
+                        .await;
                     return;
                 }
             };
@@ -56,19 +69,51 @@ async fn main() -> anyhow::Result<()> {
             let mut decoded_events = Vec::new();
             for log in logs {
                 if let Ok(val) = decoder.decode_log(&log) {
+                    let block_num = log.block_number.unwrap_or_default();
+                    let tx_hash = log
+                        .transaction_hash
+                        .map(|h| h.to_string())
+                        .unwrap_or_default();
+                    let short_tx = format!("{}...", &tx_hash.chars().take(8).collect::<String>());
+                    let summary = format!(
+                        "[Block {:<8}] {} | Event: {:.50}...",
+                        block_num,
+                        short_tx,
+                        val.to_string()
+                    );
+
+                    let _ = metrics_tx
+                        .send(rin_core::pipeline::metrics::EngineMetrics::LogStream(
+                            summary,
+                        ))
+                        .await;
                     decoded_events.push(val);
                 }
             }
-            let _ = metrics_tx.send(rin_core::pipeline::metrics::EngineMetrics::LogsDecoded(decoded_events.len())).await;
+            let _ = metrics_tx
+                .send(rin_core::pipeline::metrics::EngineMetrics::LogsDecoded(
+                    decoded_events.len(),
+                ))
+                .await;
 
             // Store
             if let Err(err) = db.insert_event_batch(decoded_events.clone()).await {
                 tracing::error!(?err, "DB insertion failed");
-                let _ = metrics_tx.send(rin_core::pipeline::metrics::EngineMetrics::PipelineError(err.to_string())).await;
+                let _ = metrics_tx
+                    .send(rin_core::pipeline::metrics::EngineMetrics::PipelineError(
+                        err.to_string(),
+                    ))
+                    .await;
                 return;
             }
-            let _ = metrics_tx.send(rin_core::pipeline::metrics::EngineMetrics::EventsInserted(decoded_events.len())).await;
-            let _ = metrics_tx.send(rin_core::pipeline::metrics::EngineMetrics::PipelineComplete).await;
+            let _ = metrics_tx
+                .send(rin_core::pipeline::metrics::EngineMetrics::EventsInserted(
+                    decoded_events.len(),
+                ))
+                .await;
+            let _ = metrics_tx
+                .send(rin_core::pipeline::metrics::EngineMetrics::PipelineComplete)
+                .await;
         }
     });
 
@@ -91,13 +136,31 @@ async fn main() -> anyhow::Result<()> {
         // Drain metrics channel without blocking
         while let Ok(metric) = metrics_rx.try_recv() {
             match metric {
-                rin_core::pipeline::metrics::EngineMetrics::LogsFetched(count) => app_state.logs_fetched += count,
-                rin_core::pipeline::metrics::EngineMetrics::LogsDecoded(count) => app_state.logs_decoded += count,
-                rin_core::pipeline::metrics::EngineMetrics::EventsInserted(count) => app_state.events_inserted += count,
-                rin_core::pipeline::metrics::EngineMetrics::PipelineComplete => tracing::info!("Pipeline complete"),
-                rin_core::pipeline::metrics::EngineMetrics::PipelineError(err) => tracing::error!("Pipeline error: {}", err),
+                rin_core::pipeline::metrics::EngineMetrics::LogsFetched(count) => {
+                    app_state.logs_fetched += count
+                }
+                rin_core::pipeline::metrics::EngineMetrics::LogsDecoded(count) => {
+                    app_state.logs_decoded += count
+                }
+                rin_core::pipeline::metrics::EngineMetrics::EventsInserted(count) => {
+                    app_state.events_inserted += count
+                }
+                rin_core::pipeline::metrics::EngineMetrics::LogStream(log_str) => {
+                    if app_state.log_history.len() >= 50 {
+                        app_state.log_history.pop_front();
+                    }
+                    app_state.log_history.push_back(log_str);
+                }
+                rin_core::pipeline::metrics::EngineMetrics::PipelineComplete => {
+                    tracing::info!("Pipeline complete")
+                }
+                rin_core::pipeline::metrics::EngineMetrics::PipelineError(err) => {
+                    tracing::error!("Pipeline error: {}", err)
+                }
             }
         }
+
+        app_state.tick_count = app_state.tick_count.wrapping_add(1);
 
         terminal.draw(|f| ui::render(f, &app_state))?;
 
@@ -124,11 +187,7 @@ async fn main() -> anyhow::Result<()> {
                                         .contract
                                         .value()
                                         .to_string(),
-                                    event_signature: app_state
-                                        .setup_form
-                                        .event
-                                        .value()
-                                        .to_string(),
+                                    event_signature: app_state.setup_form.event.value().to_string(),
                                     start_block: app_state
                                         .setup_form
                                         .start_block
