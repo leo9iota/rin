@@ -1,6 +1,6 @@
 use surrealdb::Surreal;
-use surrealdb::engine::local::Mem;
 use surrealdb::engine::local::Db;
+use surrealdb::engine::local::Mem;
 
 pub struct Database {
     db: Surreal<Db>,

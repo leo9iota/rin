@@ -12,17 +12,32 @@ use tui_input::backend::crossterm::EventHandler;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // init tracing to a file to avoid TUI corruption
+    let log_file = std::fs::File::create("rin.log")?;
+    tracing_subscriber::fmt()
+        .with_writer(std::sync::Mutex::new(log_file))
+        .with_ansi(false)
+        .init();
     // init db
     let _database = db::Database::new().await?;
 
     // init mpsc channel
-    let (tx, mut _rx) = tokio::sync::mpsc::channel::<String>(100);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<rin_core::pipeline::config::ConfigPayload>(32);
 
-    // init indexer engine
+    // spawn background worker spawner
+    tokio::spawn(async move {
+        if let Some(config) = rx.recv().await {
+            // Log an info trace
+            tracing::info!("Background engine spinning up with config: {:?}", config);
+            // Engine logic goes here
+        }
+    });
+
+    // init indexer engine (mock for now)
     let _engine = indexer::IndexerEngine::new();
 
     // init state machine
-    let mut app_state = ui::AppState::new();
+    let mut app_state = ui::AppState::new(tx);
 
     // setup TUI
     enable_raw_mode()?;
@@ -51,8 +66,28 @@ async fn main() -> anyhow::Result<()> {
                         }
                         KeyCode::Enter => {
                             if app_state.setup_form.focused == ui::FocusedField::StartBlock {
+                                // Construct Payload
+                                let payload = rin_core::pipeline::config::ConfigPayload {
+                                    rpc_url: app_state.setup_form.rpc_url.value().to_string(),
+                                    contract_address: app_state
+                                        .setup_form
+                                        .contract_address
+                                        .value()
+                                        .to_string(),
+                                    event_signature: app_state
+                                        .setup_form
+                                        .event_signature
+                                        .value()
+                                        .to_string(),
+                                    start_block: app_state
+                                        .setup_form
+                                        .start_block
+                                        .value()
+                                        .parse()
+                                        .unwrap_or(0),
+                                };
                                 // Submit form & transition
-                                tx.send("Form Submitted".into()).await?;
+                                app_state.tx.send(payload).await?;
                                 app_state.mode = ui::AppMode::Dashboard;
                             } else {
                                 app_state.setup_form.focused = app_state.setup_form.focused.next();
