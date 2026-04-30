@@ -14,6 +14,9 @@ pub struct AppState {
     pub mode: AppMode,
     pub setup_form: SetupFormState,
     pub tx: Sender<ConfigPayload>,
+    pub logs_fetched: usize,
+    pub logs_decoded: usize,
+    pub events_inserted: usize,
 }
 
 impl AppState {
@@ -22,6 +25,9 @@ impl AppState {
             mode: AppMode::default(),
             setup_form: SetupFormState::default(),
             tx,
+            logs_fetched: 0,
+            logs_decoded: 0,
+            events_inserted: 0,
         }
     }
 }

@@ -18,26 +18,57 @@ async fn main() -> anyhow::Result<()> {
         .with_writer(std::sync::Mutex::new(log_file))
         .with_ansi(false)
         .init();
-    // init db
-    let _database = db::Database::new().await?;
-
-    // init mpsc channel
+    // init config and metrics channels
     let (tx, mut rx) = tokio::sync::mpsc::channel::<rin_core::pipeline::config::ConfigPayload>(32);
+    let (metrics_tx, mut metrics_rx) = tokio::sync::mpsc::channel::<rin_core::pipeline::metrics::EngineMetrics>(100);
 
     // spawn background worker spawner
+    let db = std::sync::Arc::new(db::Database::new().await?);
     tokio::spawn(async move {
         if let Some(config) = rx.recv().await {
             tracing::info!("Background engine spinning up with config: {:?}", config);
 
-            let fetcher = rin_core::indexer::LogFetcher::new(config);
-            match fetcher.fetch_logs().await {
+            // Fetch
+            let fetcher = rin_core::indexer::LogFetcher::new(config.clone());
+            let logs = match fetcher.fetch_logs().await {
                 Ok(logs) => {
                     tracing::info!(count = logs.len(), "Fetched logs from RPC node");
+                    let _ = metrics_tx.send(rin_core::pipeline::metrics::EngineMetrics::LogsFetched(logs.len())).await;
+                    logs
                 }
                 Err(err) => {
                     tracing::error!(?err, "Log fetching failed");
+                    let _ = metrics_tx.send(rin_core::pipeline::metrics::EngineMetrics::PipelineError(err.to_string())).await;
+                    return;
+                }
+            };
+
+            // Decode
+            let decoder = match rin_core::indexer::DynamicDecoder::new(&config.event_signature) {
+                Ok(d) => d,
+                Err(err) => {
+                    tracing::error!(?err, "Failed to initialize decoder");
+                    let _ = metrics_tx.send(rin_core::pipeline::metrics::EngineMetrics::PipelineError(err.to_string())).await;
+                    return;
+                }
+            };
+
+            let mut decoded_events = Vec::new();
+            for log in logs {
+                if let Ok(val) = decoder.decode_log(&log) {
+                    decoded_events.push(val);
                 }
             }
+            let _ = metrics_tx.send(rin_core::pipeline::metrics::EngineMetrics::LogsDecoded(decoded_events.len())).await;
+
+            // Store
+            if let Err(err) = db.insert_event_batch(decoded_events.clone()).await {
+                tracing::error!(?err, "DB insertion failed");
+                let _ = metrics_tx.send(rin_core::pipeline::metrics::EngineMetrics::PipelineError(err.to_string())).await;
+                return;
+            }
+            let _ = metrics_tx.send(rin_core::pipeline::metrics::EngineMetrics::EventsInserted(decoded_events.len())).await;
+            let _ = metrics_tx.send(rin_core::pipeline::metrics::EngineMetrics::PipelineComplete).await;
         }
     });
 
@@ -57,6 +88,17 @@ async fn main() -> anyhow::Result<()> {
     // TUI event loop
     let mut should_quit = false;
     while !should_quit {
+        // Drain metrics channel without blocking
+        while let Ok(metric) = metrics_rx.try_recv() {
+            match metric {
+                rin_core::pipeline::metrics::EngineMetrics::LogsFetched(count) => app_state.logs_fetched += count,
+                rin_core::pipeline::metrics::EngineMetrics::LogsDecoded(count) => app_state.logs_decoded += count,
+                rin_core::pipeline::metrics::EngineMetrics::EventsInserted(count) => app_state.events_inserted += count,
+                rin_core::pipeline::metrics::EngineMetrics::PipelineComplete => tracing::info!("Pipeline complete"),
+                rin_core::pipeline::metrics::EngineMetrics::PipelineError(err) => tracing::error!("Pipeline error: {}", err),
+            }
+        }
+
         terminal.draw(|f| ui::render(f, &app_state))?;
 
         if event::poll(Duration::from_millis(16))?

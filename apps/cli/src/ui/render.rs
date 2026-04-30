@@ -106,10 +106,21 @@ fn render_setup(f: &mut Frame, state: &AppState) {
     }
 }
 
-fn render_dashboard(f: &mut Frame, _state: &AppState) {
+fn render_dashboard(f: &mut Frame, state: &AppState) {
+    let size = f.area();
     let block = Block::default()
         .title(" Rin Dashboard ")
         .borders(Borders::ALL)
         .style(Style::default().fg(Color::Green));
-    f.render_widget(block, f.area());
+    
+    let inner_area = block.inner(size);
+    f.render_widget(block, size);
+
+    let metrics_text = format!(
+        "Logs Fetched: {}\nLogs Decoded: {}\nEvents Inserted: {}\n\nPress 'q' to quit.",
+        state.logs_fetched, state.logs_decoded, state.events_inserted
+    );
+
+    let widget = Paragraph::new(metrics_text).style(Style::default().fg(Color::White));
+    f.render_widget(widget, inner_area);
 }
