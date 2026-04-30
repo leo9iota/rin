@@ -1,12 +1,12 @@
 [package]
-name    = "rin-cli"
+name = "rin-cli"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-rin-core  = { path = "../../crates/core" }
-anyhow    = { workspace = true }
+rin-core = { path = "../../crates/core" }
+anyhow = { workspace = true }
 crossterm = { workspace = true }
-ratatui   = { workspace = true }
+ratatui = { workspace = true }
 tui-input = { workspace = true }
-tokio     = { workspace = true }
+tokio = { workspace = true }
