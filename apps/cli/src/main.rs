@@ -1,7 +1,5 @@
-pub mod db;
-pub mod indexer;
+use rin_core::{db, indexer};
 pub mod ui;
-
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,

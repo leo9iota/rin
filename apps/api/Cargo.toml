@@ -1,0 +1,12 @@
+[package]
+name = "rin-api"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rin-core = { path = "../../crates/core" }
+anyhow = { workspace = true }
+axum = { workspace = true }
+async-graphql = { workspace = true }
+async-graphql-axum = { workspace = true }
+tokio = { workspace = true }

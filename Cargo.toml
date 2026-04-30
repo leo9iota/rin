@@ -1,9 +1,12 @@
-[package]
-name = "rin"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+members = [
+    "crates/core",
+    "apps/cli",
+    "apps/api",
+]
+resolver = "2"
 
-[dependencies]
+[workspace.dependencies]
 alloy = { version = "2.0.4", features = ["full"] }
 anyhow = "1.0.102"
 crossterm = "0.29.0"
@@ -12,6 +15,9 @@ serde = { version = "1.0.228", features = ["derive"] }
 surrealdb = { version = "3.0.5", features = ["kv-mem"] }
 tokio = { version = "1.52.1", features = ["full"] }
 tui-input = "0.15.3"
+async-graphql = "7.0.15"
+async-graphql-axum = "7.0.15"
+axum = "0.8.1"
 
 [profile.dev]
 split-debuginfo = "unpacked"
