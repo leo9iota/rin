@@ -1,12 +1,17 @@
+include = ["**/*.toml"]
+
 [formatting]
-align_entries = true
-align_comments = true
-array_trailing_comma = true
-array_auto_expand = true
-array_auto_collapse = true
-compact_arrays = true
-compact_inline_tables = false
-column_width = 100
-indent_string = "    "
-trailing_newline = true
-reorder_keys = false
+align_entries       = true
+align_comments      = true
+allowed_blank_lines = 2
+array_auto_expand   = true
+column_width        = 80
+indent_string       = "    "
+
+[schema]
+enabled = false
+
+[[rule]]
+include = ["**/pyproject.toml"]
+[rule.schema]
+path = "https://json.schemastore.org/pyproject-toml"
